@@ -1,0 +1,202 @@
+#!/usr/bin/env php
+<?php
+
+// Pastikan dijalankan dari CLI
+if (php_sapi_name() !== 'cli') {
+    die("Akses ditolak. Hanya bisa dijalankan melalui terminal.\n");
+}
+
+// Ambil perintah utama dan argumen tambahannya
+$perintah = $argv[1] ?? null;
+$argumen  = $argv[2] ?? null;
+
+// Warna ANSI untuk tampilan terminal
+$reset   = "\e[0m";
+$tebal   = "\e[1m";
+$hijau   = "\e[32m";
+$biru    = "\e[34m";
+$cyan    = "\e[36m";
+$kuning  = "\e[33m";
+$merah   = "\e[31m";
+$magenta = "\e[35m";
+
+switch ($perintah) {
+    
+    // ==========================================
+    // PERINTAH: canvas gas
+    // ==========================================
+    case 'gas':
+        $host = 'localhost';
+        $port = '4000';
+        
+        // Otomatis bersihkan layar terminal saat server dinyalakan
+        echo "\e[H\e[2J"; 
+        
+        // ASCII Art Logo Canvas
+        echo "{$magenta}{$tebal}";
+        echo "    ______                                             \n";
+        echo "   / ____/___ _____ _    ______ _____\n";
+        echo "  / /   / __ `/ __ \ | / / __ `/ ___/\n";
+        echo " / /___/ /_/ / / / / |/ / /_/ (__  )\n";
+        echo " \____/\__,_/_/ /_/|___/\__,_/____/\n";
+        echo "{$reset}\n";
+        
+        echo "{$kuning}======================================================={$reset}\n";
+        echo " {$tebal}{$hijau}CANVAS FRAMEWORK PHP BY ABILSKIEE {$reset} \n";
+        echo "{$kuning}======================================================={$reset}\n";
+        echo " {$tebal}{$cyan}Status{$reset}      :  {$hijau}Server Lokal Lagi Jalan...{$reset}\n";
+        echo " {$tebal}{$cyan}Tautan Lokal{$reset}:  {$tebal}{$biru}http://{$host}:{$port}{$reset}\n";
+        echo " {$tebal}{$cyan}Direktori{$reset}   :  " . getcwd() . "/public\n";
+        echo " {$kuning}------------------------------------------------------={$reset}\n";
+        echo " {$tebal}{$merah}Matikan Server : Tekan Ctrl + C{$reset}\n";
+        echo "{$kuning}======================================================={$reset}\n\n";
+        
+        // Jalankan server internal PHP menuju folder public
+        system("php -S {$host}:{$port} -t public");
+        break;
+
+    // ==========================================
+    // PERINTAH: canvas bikin [nama-project]
+    // ==========================================
+    case 'bikin':
+        if (!$argumen) {
+            echo "{$merah}Error: Nama project belum ditentukan!{$reset}\n";
+            echo "Format: canvas bikin [nama-project]\n";
+            exit(1);
+        }
+
+        $targetDir = getcwd() . '/' . $argumen;
+
+        if (is_dir($targetDir)) {
+            echo "{$merah}Error: Folder '$argumen' sudah ada!{$reset}\n";
+            exit(1);
+        }
+
+        echo "{$cyan}Membuat project Canvas baru di: {$tebal}{$argumen}...{$reset}\n";
+
+        // 1. Membuat struktur folder project baru sesuai arsitektur komponen
+        mkdir($targetDir . '/public', 0755, true);
+        mkdir($targetDir . '/Core', 0755, true);
+        mkdir($targetDir . '/routes', 0755, true);
+        mkdir($targetDir . '/views/pages', 0755, true);
+        mkdir($targetDir . '/views/components', 0755, true);
+        mkdir($targetDir . '/views/layouts', 0755, true);
+
+        // 2. Membuat file public/index.php menggunakan Nowdoc agar aman dari escape error
+        $indexContent = <<<'EOD'
+<?php
+ini_set('display_errors', 1);
+
+spl_autoload_register(function ($class) {
+    require_once "../Core/{$class}.php";
+});
+
+require_once '../routes/web.php';
+Router::jalankan();
+EOD;
+        file_put_contents($targetDir . '/public/index.php', $indexContent);
+
+        // 3. Membuat file views/layouts/utama.php
+        $layoutContent = <<<'EOD'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $judul ?? 'Canvass App' ?></title>
+</head>
+<body>
+    <?= $konten ?>
+</body>
+</html>
+EOD;
+        file_put_contents($targetDir . '/views/layouts/utama.php', $layoutContent);
+
+        // 4. Membuat file views/pages/beranda.php
+        $pageContent = <<<'EOD'
+<h1><?= $sapaan ?></h1>
+<p>Selamat ngoding dengan Canvass Framework!</p>
+EOD;
+        file_put_contents($targetDir . '/views/pages/beranda.php', $pageContent);
+
+        // 5. Membuat file routes/web.php
+        $routeContent = <<<'EOD'
+<?php
+
+Router::get('/', function() {
+    View::render('beranda', [
+        'judul' => 'Beranda - Canvass',
+        'sapaan' => 'Selamat Datang di Canvass Framework!'
+    ]);
+});
+EOD;
+        file_put_contents($targetDir . '/routes/web.php', $routeContent);
+
+        // 6. Menyalin file mesin Core master (Router & View) ke project baru
+        @copy(__DIR__ . '/Core/Router.php', $targetDir . '/Core/Router.php');
+        @copy(__DIR__ . '/Core/View.php', $targetDir . '/Core/View.php');
+
+        // 7. Menyalin file CLI 'canvas' ini sendiri ke dalam project baru
+        file_put_contents($targetDir . '/canvas', file_get_contents(__FILE__));
+        chmod($targetDir . '/canvas', 0755); // Beri izin eksekusi terminal
+
+        echo "{$hijau}🎉 Project '$argumen' berhasil dibuat!{$reset}\n\n";
+        echo "Silakan ketik perintah berikut untuk mulai:\n";
+        echo " 1. {$tebal}{$kuning}cd $argumen{$reset}\n";
+        echo " 2. {$tebal}{$kuning}canvas gas{$reset}\n";
+        break;
+
+    // ==========================================
+    // PERINTAH: canvas buat:halaman [nama]
+    // ==========================================
+    case 'buat:halaman':
+        if (!$argumen) {
+            echo "{$merah}Error: Nama halaman harus diisi!{$reset}\n";
+            echo "Contoh: canvas buat:halaman kontak\n";
+            exit(1);
+        }
+        
+        $file = getcwd() . "/views/pages/{$argumen}.php";
+        if (file_exists($file)) {
+            echo "{$kuning}Pemberitahuan: Halaman [{$argumen}.php] sudah ada!{$reset}\n";
+            exit(1);
+        }
+        
+        $template = "\n<div class=\"page-{$argumen}\">\n    <h1>Halaman <?= \$judul ?? '{$argumen}' ?></h1>\n</div>";
+        file_put_contents($file, $template);
+        echo "{$hijau}Halaman baru berhasil dibuat: views/pages/{$argumen}.php{$reset}\n";
+        break;
+
+    // ==========================================
+    // PERINTAH:php canvas buat:komponen [nama]
+    // ==========================================
+    case 'buat:komponen':
+        if (!$argumen) {
+            echo "{$merah}Error: Nama komponen harus diisi!{$reset}\n";
+            echo "Contoh: canvas buat:komponen navbar\n";
+            exit(1);
+        }
+        
+        $file = getcwd() . "/views/components/{$argumen}.php";
+        if (file_exists($file)) {
+            echo "{$kuning}Pemberitahuan: Komponen [{$argumen}.php] sudah ada!{$reset}\n";
+            exit(1);
+        }
+        
+        $template = "\n<div class=\"component-{$argumen}\">\n    \n</div>";
+        file_put_contents($file, $template);
+        echo "{$hijau}Komponen baru berhasil dibuat: views/components/{$argumen}.php{$reset}\n";
+        break;
+
+    // ==========================================
+    // JIKA PERINTAH TIDAK DIKENALI
+    // ==========================================
+    default:
+        echo "{$tebal}Canvas Framework CLI{$reset}\n";
+        echo "Perintah yang tersedia:\n";
+        echo "  {$hijau}canvas gas{$reset}                 : Jalankan server lokal\n";
+        echo "  {$hijau}canvas bikin [nama]{$reset}       : Bikin project baru dari awal\n";
+        echo "  {$hijau}canvas buat:halaman [nama]{$reset}  : Bikin file halaman baru di views/pages/\n";
+        echo "  {$hijau}canvas buat:komponen [nama]{$reset} : Bikin file komponen baru di views/components/\n";
+        break;
+}

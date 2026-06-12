@@ -1,0 +1,4 @@
+
+<div class="component-footer">
+    
+</div>
